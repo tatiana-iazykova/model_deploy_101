@@ -4,28 +4,17 @@ import uvicorn
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+from dto import ItemCardIn, ItemCardOut
 from model import Model
 
 app = FastAPI()
 model = Model()
 
 
-class Request(BaseModel):
-    text: str
-    return_proba: bool = False
-
-
-class Response(BaseModel):
-    label: str
-    proba: Optional[float] = None
-
-
-@app.post("/predict")
-def predict(request: Request) -> Response:
-    response = model.predict(request.text, return_proba=request.return_proba)
-    if request.return_proba:
-        return Response(label=response[0], proba=response[1])
-    return Response(label=response)
+@app.post("/moderation/")
+def predict(request: ItemCardIn) -> ItemCardOut:
+    response = model.predict(item_card=request.card)
+    return ItemCardOut(label=response)
 
 
 if __name__ == "__main__":

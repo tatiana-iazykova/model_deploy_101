@@ -1,25 +1,24 @@
-from typing import Union, Tuple
+from typing import Union, Tuple, Any, Dict
 
-import torch
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import joblib
+
+from config import Config
+from constants import CONFIG_PATH
+from dto import Card
+from utils import load_config
 
 
 class Model:
 
     def __init__(self):
-        model_checkpoint = 'cointegrated/rubert-tiny-sentiment-balanced'
-        self.tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
-        self.model = AutoModelForSequenceClassification.from_pretrained(model_checkpoint)
-        if torch.cuda.is_available():
-            self.model.cuda()
-        self.model = self.model.eval()
+        self.config = Config(**load_config(CONFIG_PATH))
+        self.model = joblib.load(self.config.model_path)
+        self.thr = self.config.threshold
+        self.template = self.config.template
 
-    def predict(self, text: str, return_proba: bool) -> Union[str, Tuple[str, float]]:
-        with torch.inference_mode():
-            inputs = self.tokenizer(text, return_tensors='pt', truncation=True, padding=True).to(self.model.device)
-            proba = torch.sigmoid(self.model(**inputs).logits).cpu().numpy()[0]
+    def predict(self, item_card: Card) -> int:
 
-        if return_proba:
-            return self.model.config.id2label[proba.argmax()], proba.max().item()
+        text = self.template.format(item_card.Title, item_card.Description)
+        pred = int(self.model.predict_proba([text])[0][1] > self.thr)
 
-        return self.model.config.id2label[proba.argmax()]
+        return pred
